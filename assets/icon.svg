@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bone" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#89b4fa"/>
+      <stop offset="1" stop-color="#74c7ec"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="96" fill="#1e1e2e"/>
+  <circle cx="256" cy="152" r="52"
+          fill="none" stroke="url(#bone)" stroke-width="26"/>
+  <circle cx="256" cy="152" r="12" fill="#a6e3a1"/>
+  <line x1="256" y1="204" x2="256" y2="332"
+        stroke="url(#bone)" stroke-width="26" stroke-linecap="round"/>
+  <line x1="256" y1="238" x2="164" y2="288"
+        stroke="url(#bone)" stroke-width="26" stroke-linecap="round"/>
+  <line x1="256" y1="238" x2="348" y2="288"
+        stroke="url(#bone)" stroke-width="26" stroke-linecap="round"/>
+  <line x1="256" y1="332" x2="192" y2="424"
+        stroke="url(#bone)" stroke-width="26" stroke-linecap="round"/>
+  <line x1="256" y1="332" x2="320" y2="424"
+        stroke="url(#bone)" stroke-width="26" stroke-linecap="round"/>
+</svg>
