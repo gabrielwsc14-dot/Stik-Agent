@@ -1,0 +1,58 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# PyInstaller
+*.spec
+
+# Ambientes virtuais
+.venv/
+venv/
+env/
+ENV/
+
+# Config do assistente (nunca subir)
+config.json
+config.*.json
+.env
+.env.*
+
+# Logs
+*.log
+logs/
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Sistema
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Builds locais
+*.deb
+*.exe
+*.AppImage
+*.apk

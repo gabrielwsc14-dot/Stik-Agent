@@ -1,0 +1,13 @@
+# Dependências opcionais do Stik Agent.
+# O núcleo usa apenas a stdlib do Python.
+
+# Voz — instale primeiro:
+#   sudo apt install portaudio19-dev espeak-ng python3-pyaudio
+#   pip3 install --user --break-system-packages -r requirements.txt
+SpeechRecognition
+pyttsx3
+
+# Captura de tela (Linux) — instale pelo gerenciador de pacotes:
+#   X11:     sudo apt install scrot
+#   Wayland: sudo apt install grim
+#   Seletor de arquivos nativo: sudo apt install zenity

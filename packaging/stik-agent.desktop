@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Stik Agent
+Comment=Agente de IA de código aberto que roda no seu Linux
+Exec=stik-agent
+Icon=stik-agent
+Terminal=false
+Categories=Utility;Development;
+Keywords=ai;agent;assistant;stik;
+StartupNotify=true

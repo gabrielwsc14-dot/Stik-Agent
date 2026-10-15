@@ -1,0 +1,109 @@
+name: Build
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+jobs:
+  linux:
+    name: Linux (.deb + binário)
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Dependências de build
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-tk binutils dpkg
+          python -m pip install --upgrade pip pyinstaller
+
+      - name: Compilar binário único
+        run: |
+          pyinstaller --onefile --windowed \
+            --name stik-agent \
+            assistente_dev.py
+
+      - name: Empacotar .deb
+        run: |
+          set -e
+          VERSION="${GITHUB_REF_NAME#v}"
+          [ -z "$VERSION" ] && VERSION="0.0.0"
+          PKG=stik-agent_${VERSION}_amd64
+          mkdir -p $PKG/DEBIAN $PKG/usr/bin $PKG/usr/share/applications \
+                   $PKG/usr/share/icons/hicolor/scalable/apps
+          cp dist/stik-agent $PKG/usr/bin/stik-agent
+          chmod +x $PKG/usr/bin/stik-agent
+          cp packaging/stik-agent.desktop $PKG/usr/share/applications/
+          [ -f assets/icon.svg ] && \
+            cp assets/icon.svg $PKG/usr/share/icons/hicolor/scalable/apps/stik-agent.svg || true
+          cat > $PKG/DEBIAN/control <<EOF
+          Package: stik-agent
+          Version: $VERSION
+          Section: utils
+          Priority: optional
+          Architecture: amd64
+          Depends: python3-tk, scrot | grim, zenity
+          Maintainer: Gabriel <gabrielwsc14-dot@users.noreply.github.com>
+          Description: Agente de IA de codigo aberto para Linux.
+          EOF
+          dpkg-deb --build --root-owner-group $PKG
+          mkdir -p dist
+          mv ${PKG}.deb dist/
+
+      - name: Renomear binário
+        run: mv dist/stik-agent dist/stik-agent-linux-amd64
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-build
+          path: |
+            dist/*.deb
+            dist/stik-agent-linux-amd64
+
+  windows:
+    name: Windows (.exe)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Dependências
+        run: python -m pip install --upgrade pip pyinstaller
+
+      - name: Compilar .exe
+        run: |
+          pyinstaller --onefile --windowed `
+            --name StikAgent `
+            assistente_dev.py
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-build
+          path: dist/StikAgent.exe
+
+  release:
+    name: Publicar release
+    needs: [linux, windows]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Publicar
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/linux-build/*
+            artifacts/windows-build/*
+          generate_release_notes: true
