@@ -1,3 +1,4 @@
+cat > "/home/gabriel/Documentos/Stik Agent/.github/workflows/build.yml" <<'YAMLEOF'
 name: Build
 
 on:
@@ -19,7 +20,7 @@ jobs:
       - name: Dependências de build
         run: |
           sudo apt-get update
-          sudo apt-get install -y python3-tk binutils dpkg
+          sudo apt-get install -y python3-tk binutils dpkg librsvg2-bin
           python -m pip install --upgrade pip pyinstaller
 
       - name: Compilar binário único
@@ -34,13 +35,80 @@ jobs:
           VERSION="${GITHUB_REF_NAME#v}"
           [ -z "$VERSION" ] && VERSION="0.0.0"
           PKG=stik-agent_${VERSION}_amd64
-          mkdir -p $PKG/DEBIAN $PKG/usr/bin $PKG/usr/share/applications \
-                   $PKG/usr/share/icons/hicolor/scalable/apps
+
+          mkdir -p $PKG/DEBIAN $PKG/usr/bin $PKG/usr/share/applications
+
+          # binário
           cp dist/stik-agent $PKG/usr/bin/stik-agent
           chmod +x $PKG/usr/bin/stik-agent
+
+          # .desktop
           cp packaging/stik-agent.desktop $PKG/usr/share/applications/
-          [ -f assets/icon.svg ] && \
-            cp assets/icon.svg $PKG/usr/share/icons/hicolor/scalable/apps/stik-agent.svg || true
+
+          # Ícone: SVG escalável + PNGs em todos os tamanhos padrão
+          ICON_SVG="assets/icon.svg"
+          if [ -f "$ICON_SVG" ]; then
+            mkdir -p $PKG/usr/share/icons/hicolor/scalable/apps
+            cp "$ICON_SVG" $PKG/usr/share/icons/hicolor/scalable/apps/stik-agent.svg
+
+            for size in 16 22 24 32 48 64 128 256 512; do
+              dir="usr/share/icons/hicolor/${size}x${size}/apps"
+              mkdir -p "$PKG/$dir"
+              rsvg-convert -w "$size" -h "$size" "$ICON_SVG" \
+                -o "$PKG/$dir/stik-agent.png"
+            done
+          fi
+
+          # postinst: atualiza caches e copia o ícone para o tema ativo do usuário
+          cat > $PKG/DEBIAN/postinst <<'POSTINST'
+          #!/bin/sh
+          set -e
+
+          # Atualiza cache do hicolor
+          if [ -x /usr/bin/gtk-update-icon-cache ]; then
+            gtk-update-icon-cache -f -t /usr/share/icons/hicolor 2>/dev/null || true
+          fi
+          if [ -x /usr/bin/update-desktop-database ]; then
+            update-desktop-database /usr/share/applications 2>/dev/null || true
+          fi
+
+          # Detecta o usuário logado (quem chamou o sudo)
+          USER_HOME=""
+          if [ -n "$SUDO_USER" ]; then
+            USER_HOME=$(getent passwd "$SUDO_USER" | cut -d: -f6)
+          fi
+
+          # Copia PNGs para o tema ativo do XFCE, se houver
+          if [ -n "$USER_HOME" ] && [ -d "$USER_HOME/.config/xfce4" ]; then
+            THEME=$(su - "$SUDO_USER" -c \
+              "DISPLAY=:0 xfconf-query -c xsettings -p /Net/IconThemeName 2>/dev/null" \
+              2>/dev/null | tail -1)
+            if [ -n "$THEME" ] && [ -d "/usr/share/icons/$THEME" ]; then
+              for size in 16 22 24 32 48 64 128 256 512; do
+                SRC="/usr/share/icons/hicolor/${size}x${size}/apps/stik-agent.png"
+                DST_DIR="/usr/share/icons/$THEME/apps/$size"
+                if [ -f "$SRC" ] && [ -d "$DST_DIR" ]; then
+                  cp -f "$SRC" "$DST_DIR/stik-agent.png" 2>/dev/null || true
+                fi
+              done
+              if [ -x /usr/bin/gtk-update-icon-cache ]; then
+                gtk-update-icon-cache -f -t "/usr/share/icons/$THEME" 2>/dev/null || true
+              fi
+            fi
+          fi
+
+          exit 0
+          POSTINST
+          chmod 755 $PKG/DEBIAN/postinst
+
+          # prerm: nada especial, mas deixamos o arquivo consistente
+          cat > $PKG/DEBIAN/prerm <<'PRERM'
+          #!/bin/sh
+          set -e
+          exit 0
+          PRERM
+          chmod 755 $PKG/DEBIAN/prerm
+
           cat > $PKG/DEBIAN/control <<EOF
           Package: stik-agent
           Version: $VERSION
@@ -51,6 +119,7 @@ jobs:
           Maintainer: Gabriel <gabrielwsc14-dot@users.noreply.github.com>
           Description: Agente de IA de codigo aberto para Linux.
           EOF
+
           dpkg-deb --build --root-owner-group $PKG
           mkdir -p dist
           mv ${PKG}.deb dist/
@@ -107,3 +176,4 @@ jobs:
             artifacts/linux-build/*
             artifacts/windows-build/*
           generate_release_notes: true
+YAMLEOF
