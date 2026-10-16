@@ -2,12 +2,30 @@ name: Build
 
 on:
   push:
+    branches: [main]
     tags: ["v*"]
   workflow_dispatch:
 
 jobs:
+  lint:
+    name: Verificação
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Verificar sintaxe do Python
+        run: python3 -c "import ast; ast.parse(open('assistente_dev.py', encoding='utf-8').read()); print('sintaxe ok')"
+
+      - name: Verificar YAML do workflow
+        run: python3 -c "import yaml; yaml.safe_load(open('.github/workflows/build.yml'))" 2>/dev/null || true
+
   linux:
     name: Linux (.deb + binário)
+    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
@@ -34,18 +52,14 @@ jobs:
           VERSION="${GITHUB_REF_NAME#v}"
           [ -z "$VERSION" ] && VERSION="0.0.0"
           PKG=stik-agent_${VERSION}_amd64
-
           mkdir -p $PKG/DEBIAN $PKG/usr/bin $PKG/usr/share/applications
-
           cp dist/stik-agent $PKG/usr/bin/stik-agent
           chmod +x $PKG/usr/bin/stik-agent
           cp packaging/stik-agent.desktop $PKG/usr/share/applications/
-
           ICON_SVG="assets/icon.svg"
           if [ -f "$ICON_SVG" ]; then
             mkdir -p $PKG/usr/share/icons/hicolor/scalable/apps
             cp "$ICON_SVG" $PKG/usr/share/icons/hicolor/scalable/apps/stik-agent.svg
-
             for size in 16 22 24 32 48 64 128 256 512; do
               dir="usr/share/icons/hicolor/${size}x${size}/apps"
               mkdir -p "$PKG/$dir"
@@ -53,7 +67,6 @@ jobs:
                 -o "$PKG/$dir/stik-agent.png"
             done
           fi
-
           printf '%s\n' '#!/bin/sh' 'set -e' \
             'if [ -x /usr/bin/gtk-update-icon-cache ]; then' \
             '  gtk-update-icon-cache -f -t /usr/share/icons/hicolor 2>/dev/null || true' \
@@ -61,28 +74,8 @@ jobs:
             'if [ -x /usr/bin/update-desktop-database ]; then' \
             '  update-desktop-database /usr/share/applications 2>/dev/null || true' \
             'fi' \
-            'USER_HOME=""' \
-            'if [ -n "$SUDO_USER" ]; then' \
-            '  USER_HOME=$(getent passwd "$SUDO_USER" | cut -d: -f6)' \
-            'fi' \
-            'if [ -n "$USER_HOME" ] && [ -d "$USER_HOME/.config/xfce4" ]; then' \
-            '  THEME=$(su - "$SUDO_USER" -c "DISPLAY=:0 xfconf-query -c xsettings -p /Net/IconThemeName 2>/dev/null" 2>/dev/null | tail -1 || true)' \
-            '  if [ -n "$THEME" ] && [ -d "/usr/share/icons/$THEME" ]; then' \
-            '    for size in 16 22 24 32 48 64 128 256 512; do' \
-            '      SRC="/usr/share/icons/hicolor/${size}x${size}/apps/stik-agent.png"' \
-            '      DST_DIR="/usr/share/icons/$THEME/apps/$size"' \
-            '      if [ -f "$SRC" ] && [ -d "$DST_DIR" ]; then' \
-            '        cp -f "$SRC" "$DST_DIR/stik-agent.png" 2>/dev/null || true' \
-            '      fi' \
-            '    done' \
-            '    if [ -x /usr/bin/gtk-update-icon-cache ]; then' \
-            '      gtk-update-icon-cache -f -t "/usr/share/icons/$THEME" 2>/dev/null || true' \
-            '    fi' \
-            '  fi' \
-            'fi' \
             'exit 0' > $PKG/DEBIAN/postinst
           chmod 755 $PKG/DEBIAN/postinst
-
           cat > $PKG/DEBIAN/control <<EOF
           Package: stik-agent
           Version: $VERSION
@@ -93,7 +86,6 @@ jobs:
           Maintainer: Gabriel <gabrielwsc14-dot@users.noreply.github.com>
           Description: Agente de IA de codigo aberto para Linux.
           EOF
-
           dpkg-deb --build --root-owner-group $PKG
           mkdir -p dist
           mv ${PKG}.deb dist/
@@ -110,6 +102,7 @@ jobs:
 
   windows:
     name: Windows (.exe)
+    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
